@@ -1,0 +1,62 @@
+import pandas as pd
+from datetime import datetime
+
+# Carregar arquivos CSV
+def load_data(files):
+    dataframes = {}
+    for platform, file_path in files.items():
+        try:
+            dataframes[platform] = pd.read_csv(file_path)
+        except Exception as e:
+            print(f"Erro ao carregar {platform}: {e}")
+            dataframes[platform] = None
+    return dataframes
+
+# Consolidar dados
+def consolidate_data(dataframes):
+    combined_df = pd.concat(dataframes.values(), ignore_index=True)
+    return combined_df
+
+# Gerar resumo de vendas por país
+def sales_summary(df):
+    return df.groupby("delivery_country").agg(
+        total_sales=("total_price", "sum"),
+        total_quantity=("quantity", "sum"),
+        total_orders=("invoice_id", "count")
+    ).reset_index().sort_values(by="total_sales", ascending=False)
+
+# Identificar produtos mais populares por país e plataforma
+def popular_products(df):
+    return df.groupby(["delivery_country", "site"]).agg(
+        top_product=("product_name", lambda x: x.value_counts().idxmax())
+    ).reset_index()
+
+# Calcular idade média dos compradores por país
+def average_age(df):
+    current_year = datetime.now().year
+    df["buyer_birth_date"] = pd.to_datetime(df["buyer_birth_date"], errors="coerce")
+    df["buyer_age"] = current_year - df["buyer_birth_date"].dt.year
+    return df.groupby("delivery_country").agg(average_buyer_age=("buyer_age", "mean")).reset_index()
+
+# Principal função de análise
+def main():
+    files = {
+        "AliExpress": "Meganium_Sales_Data_-_AliExpress.csv",
+        "Etsy": "Meganium_Sales_Data_-_Etsy.csv",
+        "Shopee": "Meganium_Sales_Data_-_Shopee.csv",
+    }
+    
+    dataframes = load_data(files)
+    combined_df = consolidate_data(dataframes)
+    
+    print("Resumo de vendas por país:")
+    print(sales_summary(combined_df))
+    
+    print("\nProdutos mais populares por país e plataforma:")
+    print(popular_products(combined_df))
+    
+    print("\nIdade média dos compradores por país:")
+    print(average_age(combined_df))
+
+if __name__ == "__main__":
+    main()
